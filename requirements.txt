@@ -1,0 +1,8 @@
+jupyter
+notebook
+pandas
+matplotlib
+plotly
+jupyterlab>=3
+ipywidgets>=7.6
+black
