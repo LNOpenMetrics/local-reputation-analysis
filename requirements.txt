@@ -7,3 +7,4 @@ jupyterlab>=3
 ipywidgets>=7.6
 black
 pyecharts==1.9.0
+lnmetrics-api>=0.0.7

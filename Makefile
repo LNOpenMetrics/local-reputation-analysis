@@ -1,4 +1,4 @@
-CC=jupiter
+CC=jupyter
 PYTHON=python3
 FMT=black
 PM=pip3
