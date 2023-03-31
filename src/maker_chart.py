@@ -195,3 +195,191 @@ class ChartMaker:
         ax.set_xticks(x + width, networks)
         ax.legend(loc="upper center", ncols=len(apis))
         plt.show()
+
+    def __to_unix(self, period: str):
+        """Convert a date string defined as `d/m/y` to a unix timestamp"""
+        import datetime
+
+        return datetime.datetime.strptime(period, "%d/%m/%Y").timestamp()
+
+    def __count_forwards(
+        self, accumulator: Dict[str, int], json_payload: Dict[str, any]
+    ):
+        """From the JSON payload counts the forwards inside the accumulator dics"""
+        for event in json_payload:
+            forwards = event["forwards"]
+            accumulator["completed"] = accumulator["completed"] + forwards["completed"]
+            accumulator["failed"] = accumulator["failed"] + forwards["failed"]
+
+    def count_forwards_in_period(
+        self, network: str, node_id: str, from_period: str, to_period: str
+    ) -> List[Dict[str, int]]:
+        """Counting forwards in a period"""
+        from datetime import datetime, timedelta
+        import copy
+
+        count_forwards = {
+            "completed": 0,
+            "failed": 0,
+        }
+
+        start = datetime.strptime(from_period, "%d/%m/%Y")
+        end_query = datetime.strptime(to_period, "%d/%m/%Y")
+        end = start + timedelta(hours=6)
+        metric = self.client.get_metric_one(
+            network=network,
+            node_id=node_id,
+            first=str(int(start.timestamp())),
+            last=str(int(end.timestamp())),
+        )
+        page_info = metric["page_info"]
+        has_next = page_info["has_next"]
+        uptime_list = metric["up_time"]
+        end = page_info["end"]
+
+        self.__count_forwards(count_forwards, uptime_list)
+
+        counting_by_days = []
+        if not has_next:
+            counting_by_days.append(copy.deepcopy(count_forwards))
+
+        days = (end_query - datetime.fromtimestamp(end)).days
+        while has_next is True:
+            start = page_info["start"]
+            end = page_info["end"]
+            metric = self.client.get_metric_one(
+                network=network,
+                node_id=node_id,
+                first=str(start),
+                last=str(end),
+            )
+            page_info = metric["page_info"]
+            has_next = page_info["has_next"]
+            uptime_list = metric["up_time"]
+            self.__count_forwards(count_forwards, uptime_list)
+
+            diff = end_query - datetime.fromtimestamp(end)
+            if has_next and diff.days < 0:
+                has_next = False
+
+            if diff.days < days:
+                days = diff.days
+                counting_by_days.append(copy.deepcopy(count_forwards))
+
+        return counting_by_days
+
+    def show_activity_node_by_network(self, networks: Dict[str, List[Dict[str, int]]]):
+        """Show the Activity of the node on a specific network"""
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        color = {
+            "bitcoin": "orange",
+            "testnet": "gray",
+        }
+        _, ax = plt.subplots()
+        for key, values in networks.items():
+            values = [forward["completed"] + forward["failed"] for forward in values]
+            x = np.arange(len(values))
+            c = color[key]
+            plt.stem(x, values, linefmt=c, label=key)
+        ax.grid()
+        ax.legend()
+        plt.show()
+
+    def __get_size_channel(self, json_payload: Dict[str, any]) -> Dict[str, int]:
+        """From the JSON payload counts the forwards inside the accumulator dics"""
+        for event in json_payload:
+            if event["event"] == "on_update":
+                return {
+                    "channels": event["channels"]["tot_channels"],
+                    "node_fee": event["fee"],
+                }
+        return None
+
+    def count_node_size_by_period(
+        self, network: str, node_id: str, from_period: str, to_period: str
+    ) -> List[Dict[str, int]]:
+        """Counting forwards in a period"""
+        from datetime import datetime, timedelta
+        import copy
+
+        start = datetime.strptime(from_period, "%d/%m/%Y")
+        end_query = datetime.strptime(to_period, "%d/%m/%Y")
+        end = start + timedelta(hours=6)
+        metric = self.client.get_metric_one(
+            network=network,
+            node_id=node_id,
+            first=str(int(start.timestamp())),
+            last=str(int(end.timestamp())),
+        )
+        page_info = metric["page_info"]
+        has_next = page_info["has_next"]
+        uptime_list = metric["up_time"]
+        end = page_info["end"]
+
+        counting_by_days = []
+        if not has_next:
+            counting_by_days.append(self.__get_size_channel(uptime_list))
+
+        days = (end_query - datetime.fromtimestamp(end)).days
+        while has_next is True:
+            start = page_info["start"]
+            end = page_info["end"]
+            metric = self.client.get_metric_one(
+                network=network,
+                node_id=node_id,
+                first=str(start),
+                last=str(end),
+            )
+            page_info = metric["page_info"]
+            has_next = page_info["has_next"]
+            uptime_list = metric["up_time"]
+            diff = end_query - datetime.fromtimestamp(end)
+            if has_next and diff.days < 0:
+                has_next = False
+
+            if diff.days < days:
+                days = diff.days
+                counting_by_days.append(self.__get_size_channel(uptime_list))
+        return [i for i in counting_by_days if i is not None]
+
+    def show_size_node_by_network(self, networks: Dict[str, List[Dict[str, Any]]]):
+        """Show the Activity of the node on a specific network"""
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        color = {
+            "bitcoin": "orange",
+            "testnet": "gray",
+        }
+        _, ax = plt.subplots()
+        for key, values in networks.items():
+            values = [value["channels"] for value in values]
+            x = np.arange(len(values))
+            c = color[key]
+            plt.stem(x, values, linefmt=c, label=key)
+        ax.grid()
+        ax.legend()
+        plt.show()
+
+    def show_node_fee_by_network(self, networks: Dict[str, List[Dict[str, Any]]]):
+        """Show the Activity of the node on a specific network"""
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        color = {
+            "bitcoin": ["orange", "green"],
+            "testnet": ["gray", "red"],
+        }
+        _, ax = plt.subplots()
+        for key, values in networks.items():
+            fee_per_sats = [value["node_fee"]["per_msat"] for value in values]
+            fee_base = [value["node_fee"]["base"] for value in values]
+            x = np.arange(len(values))
+            c = color[key]
+            plt.stem(x, fee_per_sats, linefmt=c[0], label=f"{key} fee per sats")
+            plt.stem(x, fee_base, linefmt=c[1], label=f"{key} base fee")
+        ax.grid()
+        ax.legend()
+        plt.show()
