@@ -383,3 +383,31 @@ class ChartMaker:
         ax.grid()
         ax.legend()
         plt.show()
+
+    def show_cln_api_comparison_char(
+        self, bench_by_client: Dict[str, str], clients: List[str]
+    ) -> None:
+        """Function that it is used to show the cln API benchmarks
+
+        Docs: https://matplotlib.org/stable/gallery/lines_bars_and_markers/barchart.html#sphx-glr-gallery-lines-bars-and-markers-barchart-py
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        # the label locations
+        x = np.arange(len(clients))
+        _, ax = plt.subplots(layout="constrained")
+
+        ax.set_ylabel("Execution time in ms")
+        ax.set_title("Core Lightning Method Call")
+        width = 0.25  # the width of the bars
+        multiplier = 0
+
+        for method_call, result in bench_by_client.items():
+            offset = width * multiplier
+            rects = ax.bar(x + offset, result, width, label=method_call)
+            ax.bar_label(rects, padding=2)
+            multiplier += 1
+        ax.set_xticks(x + width, clients)
+        ax.legend(loc="upper center", ncols=len(bench_by_client))
+        plt.show()
