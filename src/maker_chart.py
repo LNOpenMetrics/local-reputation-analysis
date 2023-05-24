@@ -284,6 +284,8 @@ class ChartMaker:
             c = color[key]
             plt.stem(x, values, linefmt=c, label=key)
         ax.grid()
+        ax.set_ylabel('forwards')
+        ax.set_xlabel('days')
         ax.legend()
         plt.show()
 
@@ -360,6 +362,8 @@ class ChartMaker:
             c = color[key]
             plt.stem(x, values, linefmt=c, label=key)
         ax.grid()
+        ax.set_ylabel('channels')
+        ax.set_xlabel('days')
         ax.legend()
         plt.show()
 
